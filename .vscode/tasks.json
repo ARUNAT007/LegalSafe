@@ -1,0 +1,38 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Create venv",
+      "type": "shell",
+      "command": "${command:python.interpreterPath} -m venv .venv",
+      "problemMatcher": []
+    },
+    {
+      "label": "Install requirements",
+      "type": "shell",
+      "command": ".venv/bin/pip install -r requirements.txt",
+      "windows": {
+        "command": ".venv\\Scripts\\pip.exe install -r requirements.txt"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Download spaCy model",
+      "type": "shell",
+      "command": ".venv/bin/python -m spacy download en_core_web_sm",
+      "windows": {
+        "command": ".venv\\Scripts\\python.exe -m spacy download en_core_web_sm"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Start server (uvicorn)",
+      "type": "shell",
+      "command": ".venv/bin/python -m uvicorn app.main:app --reload --port 8000",
+      "windows": {
+        "command": ".venv\\Scripts\\python.exe -m uvicorn app.main:app --reload --port 8000"
+      },
+      "problemMatcher": []
+    }
+  ]
+}

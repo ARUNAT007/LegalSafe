@@ -1,0 +1,16 @@
+fastapi
+uvicorn[standard]
+python-multipart
+pytesseract
+pdfminer.six
+Pillow
+spacy
+networkx
+transformers
+torch
+openai
+tqdm
+python-dateutil
+pdf2image
+regex
+rapidfuzz

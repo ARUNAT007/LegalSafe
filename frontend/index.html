@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>LegalSafe-G Demo</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <script src="https://unpkg.com/vis-network@9.1.2/dist/vis-network.min.js"></script>
+</head>
+<body>
+  <h1>LegalSafe-G — Demo</h1>
+
+  <div id="uploader">
+    <form id="form">
+      <input type="file" id="file" name="file" />
+      <button type="submit">Upload & Simplify</button>
+    </form>
+    <div id="status"></div>
+  </div>
+
+  <div id="results" style="display:none;">
+    <h2>Original (left) — Simplified (right)</h2>
+    <div class="side-by-side">
+      <pre id="original" class="pane"></pre>
+      <pre id="simplified" class="pane"></pre>
+    </div>
+
+    <h2>Graph Visualizations</h2>
+    <div class="graph-row">
+      <div>
+        <h3>Original Graph</h3>
+        <div id="orig-graph" class="graph"></div>
+      </div>
+      <div>
+        <h3>Generated Graph</h3>
+        <div id="gen-graph" class="graph"></div>
+      </div>
+    </div>
+
+    <h3>Verification</h3>
+    <pre id="verification"></pre>
+  </div>
+
+  <script src="/frontend/app.js"></script>
+</body>
+</html>
