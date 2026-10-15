@@ -1,43 +1,166 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8">
-  <title>LegalSafe-G Demo</title>
-  <link rel="stylesheet" href="/static/style.css">
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>LEGALSAFE_G — Document Analysis</title>
+  <link rel="stylesheet" href="/static/style.css" />
   <script src="https://unpkg.com/vis-network@9.1.2/dist/vis-network.min.js"></script>
 </head>
 <body>
-  <h1>LegalSafe-G — Demo</h1>
-
-  <div id="uploader">
-    <form id="form">
-      <input type="file" id="file" name="file" />
-      <button type="submit">Upload & Simplify</button>
-    </form>
-    <div id="status"></div>
-  </div>
-
-  <div id="results" style="display:none;">
-    <h2>Original (left) — Simplified (right)</h2>
-    <div class="side-by-side">
-      <pre id="original" class="pane"></pre>
-      <pre id="simplified" class="pane"></pre>
-    </div>
-
-    <h2>Graph Visualizations</h2>
-    <div class="graph-row">
-      <div>
-        <h3>Original Graph</h3>
-        <div id="orig-graph" class="graph"></div>
+  <div class="app">
+    <aside class="sidebar" id="sidebar">
+      <div class="brand">
+        <img src="/static/logo.svg" alt="LEGALSAFE_G" class="logo" />
+        <div class="brand-text">
+          <div class="product">LEGALSAFE_G</div>
+          <div class="tag">Legal document simplification</div>
+        </div>
       </div>
-      <div>
-        <h3>Generated Graph</h3>
-        <div id="gen-graph" class="graph"></div>
+      <nav class="nav">
+        <button class="nav-btn active" data-section="overview">Overview</button>
+        <button class="nav-btn" data-section="comparison">Document Comparison</button>
+        <button class="nav-btn" data-section="graphs">Legal Fact Graphs</button>
+        <button class="nav-btn" data-section="mismatches">Mismatches & Issues</button>
+        <button class="nav-btn" data-section="terms">Legal Terms</button>
+        <button class="nav-btn" data-section="verification">Verification Report</button>
+      </nav>
+      <div class="sidebar-footer">
+        <small>Ready</small>
       </div>
-    </div>
+    </aside>
 
-    <h3>Verification</h3>
-    <pre id="verification"></pre>
+    <main class="main">
+      <header class="topbar">
+        <h1>Understand Legal Documents with Confidence</h1>
+        <p class="subtitle">Upload a contract or legal document, simplify its language, and verify preservation of key legal facts.</p>
+      </header>
+
+      <section id="upload-workspace" class="card upload-card">
+        <div class="upload-left">
+          <div id="dropzone" class="dropzone">
+            <input id="file" type="file" accept=".pdf,.txt,.md" />
+            <div class="dz-content">
+              <strong>Drag & drop a file</strong>
+              <span>or</span>
+              <button id="browse" class="btn small">Browse files</button>
+              <div class="hint">Supported: PDF (text or scanned), .txt, .md</div>
+            </div>
+          </div>
+          <div class="file-info" id="file-info" aria-live="polite"></div>
+          <div class="controls">
+            <button id="analyzeBtn" class="btn primary" disabled>Analyze Document</button>
+          </div>
+        </div>
+        <div class="upload-right">
+          <div id="processing-stage" class="processing">
+            <div class="spinner" id="spinner" hidden></div>
+            <div id="stage-text" class="stage-text">No analysis running</div>
+            <progress id="progress" value="0" max="100" hidden></progress>
+          </div>
+          <div class="recent card small" id="recent-card">
+            <strong>Recent</strong>
+            <div class="muted">No analyses yet</div>
+          </div>
+        </div>
+      </section>
+
+      <section id="dashboard" class="dashboard" hidden>
+        <div class="metrics row" id="metrics">
+          <!-- metric cards inserted here -->
+        </div>
+
+        <div class="tabs" id="section-content">
+          <!-- Overview -->
+          <div class="tab-pane" id="overview">
+            <div class="overview-grid">
+              <div class="card summary">
+                <h3>Analysis Summary</h3>
+                <div id="summary-list"></div>
+              </div>
+              <div class="card actions">
+                <h3>Actions</h3>
+                <div class="actions-list">
+                  <button id="download-simplified" class="btn">Download Simplified</button>
+                  <button id="download-original" class="btn">Download Original</button>
+                  <button id="open-comparison" class="btn primary">Open Comparison</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Comparison -->
+          <div class="tab-pane" id="comparison" hidden>
+            <div class="compare-panels">
+              <div class="panel card">
+                <div class="panel-header">Original Document</div>
+                <div class="panel-body scrollable" id="original-text"></div>
+              </div>
+              <div class="panel card">
+                <div class="panel-header">Simplified Document</div>
+                <div class="panel-body scrollable" id="simplified-text"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Graphs -->
+          <div class="tab-pane" id="graphs" hidden>
+            <div class="graphs-row">
+              <div class="graph-card card">
+                <div class="panel-header">Original — Legal Fact Graph</div>
+                <div id="orig-graph" class="graph-canvas"></div>
+                <div class="graph-controls">
+                  <button class="btn" data-graph="orig">Reset View</button>
+                </div>
+              </div>
+              <div class="graph-card card">
+                <div class="panel-header">Simplified — Legal Fact Graph</div>
+                <div id="gen-graph" class="graph-canvas"></div>
+                <div class="graph-controls">
+                  <button class="btn" data-graph="gen">Reset View</button>
+                </div>
+              </div>
+            </div>
+            <div id="node-info" class="card small" hidden>
+              <h4>Node Details</h4>
+              <pre id="node-details"></pre>
+            </div>
+          </div>
+
+          <!-- Mismatches -->
+          <div class="tab-pane" id="mismatches" hidden>
+            <div class="card">
+              <h3>Mismatches & Issues</h3>
+              <div id="mismatch-list"></div>
+            </div>
+          </div>
+
+          <!-- Terms -->
+          <div class="tab-pane" id="terms" hidden>
+            <div class="card split">
+              <div>
+                <h4>Terms — Original</h4>
+                <div id="terms-original" class="chip-list"></div>
+              </div>
+              <div>
+                <h4>Terms — Simplified</h4>
+                <div id="terms-simplified" class="chip-list"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Verification -->
+          <div class="tab-pane" id="verification" hidden>
+            <div class="card">
+              <h3>Verification Report</h3>
+              <div id="verification-content"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <footer class="footer muted">LEGALSAFE_G • Prototype — Not legal advice</footer>
+    </main>
   </div>
 
   <script src="/frontend/app.js"></script>
