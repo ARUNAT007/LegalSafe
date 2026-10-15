@@ -53,10 +53,64 @@
           </div>
         </div>
         <div class="upload-right">
-          <div id="processing-stage" class="processing">
-            <div class="spinner" id="spinner" hidden></div>
-            <div id="stage-text" class="stage-text">No analysis running</div>
+          <div id="processing" class="processing">
+            <div class="processing-header">
+              <div class="spinner" id="spinner" hidden></div>
+              <div class="stage-text" id="stage-text">No analysis running</div>
+            </div>
             <progress id="progress" value="0" max="100" hidden></progress>
+
+            <div class="steps" id="steps" hidden>
+              <div class="step" data-step="upload">
+                <div class="step-left"><div class="step-icon">✔</div></div>
+                <div class="step-body">
+                  <div class="step-title">Document Upload & Validation</div>
+                  <div class="step-desc">Securely saving file & validating MIME type</div>
+                </div>
+                <div class="step-right"><div class="step-status">Pending</div></div>
+              </div>
+              <div class="step" data-step="extraction">
+                <div class="step-left"><div class="step-icon">✔</div></div>
+                <div class="step-body">
+                  <div class="step-title">Text & Clause Extraction</div>
+                  <div class="step-desc">Extracting clauses, negations, and legal terms</div>
+                </div>
+                <div class="step-right"><div class="step-status">Pending</div></div>
+              </div>
+              <div class="step" data-step="graph_generation">
+                <div class="step-left"><div class="step-icon">✔</div></div>
+                <div class="step-body">
+                  <div class="step-title">Legal Fact Graph Generation</div>
+                  <div class="step-desc">Building NetworkX graph nodes & relations</div>
+                </div>
+                <div class="step-right"><div class="step-status">Pending</div></div>
+              </div>
+              <div class="step" data-step="constraints">
+                <div class="step-left"><div class="step-icon">✔</div></div>
+                <div class="step-body">
+                  <div class="step-title">Deriving Fact Preservation Constraints</div>
+                  <div class="step-desc">Formulating constraint rules for amounts and dates</div>
+                </div>
+                <div class="step-right"><div class="step-status">Pending</div></div>
+              </div>
+              <div class="step" data-step="simplification">
+                <div class="step-left"><div class="step-icon">✔</div></div>
+                <div class="step-body">
+                  <div class="step-title">FLAN–T5 Constraint Simplification</div>
+                  <div class="step-desc">Generating plain-language legal text</div>
+                </div>
+                <div class="step-right"><div class="step-status">Pending</div></div>
+              </div>
+              <div class="step" data-step="verification">
+                <div class="step-left"><div class="step-icon">●</div></div>
+                <div class="step-body">
+                  <div class="step-title">Fidelity & Meaning Verification</div>
+                  <div class="step-desc">Verifying graph alignment & zero fact loss</div>
+                </div>
+                <div class="step-right"><div class="step-status">Pending</div></div>
+              </div>
+            </div>
+
           </div>
           <div class="recent card small" id="recent-card">
             <strong>Recent</strong>
@@ -67,11 +121,9 @@
 
       <section id="dashboard" class="dashboard" hidden>
         <div class="metrics row" id="metrics">
-          <!-- metric cards inserted here -->
         </div>
 
         <div class="tabs" id="section-content">
-          <!-- Overview -->
           <div class="tab-pane" id="overview">
             <div class="overview-grid">
               <div class="card summary">
@@ -83,13 +135,12 @@
                 <div class="actions-list">
                   <button id="download-simplified" class="btn">Download Simplified</button>
                   <button id="download-original" class="btn">Download Original</button>
-                  <button id="open-comparison" class="btn primary">Open Comparison</button>
+                  <button id="export-pdf" class="btn primary">Export PDF Report</button>
                 </div>
               </div>
             </div>
           </div>
 
-          <!-- Comparison -->
           <div class="tab-pane" id="comparison" hidden>
             <div class="compare-panels">
               <div class="panel card">
@@ -103,7 +154,6 @@
             </div>
           </div>
 
-          <!-- Graphs -->
           <div class="tab-pane" id="graphs" hidden>
             <div class="graphs-row">
               <div class="graph-card card">
@@ -127,7 +177,6 @@
             </div>
           </div>
 
-          <!-- Mismatches -->
           <div class="tab-pane" id="mismatches" hidden>
             <div class="card">
               <h3>Mismatches & Issues</h3>
@@ -135,7 +184,6 @@
             </div>
           </div>
 
-          <!-- Terms -->
           <div class="tab-pane" id="terms" hidden>
             <div class="card split">
               <div>
@@ -149,7 +197,6 @@
             </div>
           </div>
 
-          <!-- Verification -->
           <div class="tab-pane" id="verification" hidden>
             <div class="card">
               <h3>Verification Report</h3>

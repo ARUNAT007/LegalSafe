@@ -14,3 +14,4 @@ python-dateutil
 pdf2image
 regex
 rapidfuzz
+reportlab

@@ -1,9 +1,8 @@
-// frontend/app.js — redesigned dashboard
+// frontend/app.js — redesigned dashboard with async job polling
 (() => {
-  const state = { file: null, result: null, networks: { orig: null, gen: null } };
+  const state = { file: null, job_id: null, result: null, networks: { orig: null, gen: null } };
 
   function qs(id) { return document.getElementById(id); }
-  function qsa(selector) { return document.querySelectorAll(selector); }
 
   // elements
   const dropzone = qs('dropzone');
@@ -24,6 +23,7 @@
   const termsOriginal = qs('terms-original');
   const termsSimplified = qs('terms-simplified');
   const verificationContent = qs('verification-content');
+  const stepsEl = qs('steps');
 
   // nav
   document.querySelectorAll('.nav-btn').forEach(btn => btn.addEventListener('click', (e) => {
@@ -54,11 +54,10 @@
 
   function handleFileSelect(file){
     if(!file) return;
-    // validate
     const allowed = ['application/pdf','text/plain','text/markdown'];
     const ok = allowed.includes(file.type) || file.name.match(/\.(pdf|txt|md)$/i);
     if(!ok){ fileInfo.innerHTML = '<div class="muted">Unsupported file type</div>'; analyzeBtn.disabled = true; return; }
-    if(file.size > 8 * 1024 * 1024){ fileInfo.innerHTML = '<div class="muted">File too large (max 8 MB)</div>'; analyzeBtn.disabled = true; return; }
+    if(file.size > 20 * 1024 * 1024){ fileInfo.innerHTML = '<div class="muted">File too large (max 20 MB)</div>'; analyzeBtn.disabled = true; return; }
     state.file = file;
     fileInfo.innerHTML = `<div><strong>${file.name}</strong> • ${(file.size/1024).toFixed(1)} KB</div>`;
     analyzeBtn.disabled = false;
@@ -66,73 +65,106 @@
 
   analyzeBtn.addEventListener('click', async ()=>{
     if(!state.file) return;
-    // start UI processing
     dashboard.hidden = true;
     spinner.hidden = false;
     stageText.textContent = 'Uploading file…';
-    progress.hidden = false; progress.value = 10;
+    progress.hidden = false; progress.value = 5;
+    stepsEl.hidden = false;
 
     try{
-      const data = await uploadFileWithProgress(state.file, (p)=>{
-        progress.value = 10 + Math.round(p*60);
-      });
-      progress.value = 100; stageText.textContent = 'Processing complete';
-      spinner.hidden = true;
-      state.result = data;
-      renderDashboard(data);
-      dashboard.hidden = false;
-      // open overview
-      showSection('overview');
+      const job = await createJob(state.file, (p)=>{ progress.value = 5 + Math.round(p*60); });
+      state.job_id = job.job_id;
+      stageText.textContent = 'Processing on server…';
+      pollStatus(job.job_id);
     }catch(err){
       spinner.hidden = true; progress.hidden = true; stageText.textContent = 'Error: '+(err.message||err);
       alert('Analysis failed: ' + (err.message || err));
     }
   });
 
-  function uploadFileWithProgress(file, onProgress){
+  function createJob(file, onProgress){
     return new Promise((resolve,reject)=>{
       const xhr = new XMLHttpRequest();
-      xhr.open('POST', '/simplify');
+      xhr.open('POST', '/analyze');
       xhr.onload = ()=>{
-        if(xhr.status >= 200 && xhr.status < 300){
-          try{ const json = JSON.parse(xhr.responseText); resolve(json); }catch(e){ reject(e); }
-        }else{ reject(new Error(xhr.responseText || 'Upload failed')); }
+        if(xhr.status >=200 && xhr.status<300){ resolve(JSON.parse(xhr.responseText)); }
+        else reject(new Error(xhr.responseText||'Upload failed'));
       };
       xhr.onerror = ()=> reject(new Error('Network error'));
-      xhr.upload.onprogress = (e)=>{ if(e.lengthComputable) onProgress(e.loaded / e.total); };
+      xhr.upload.onprogress = (e)=>{ if(e.lengthComputable && onProgress) onProgress(e.loaded / e.total); };
       const fd = new FormData(); fd.append('file', file);
       xhr.send(fd);
     });
   }
 
+  async function pollStatus(job_id){
+    try{
+      const res = await fetch('/status/' + job_id);
+      if(!res.ok) throw new Error('Status request failed');
+      const data = await res.json();
+      updateProgressUI(data);
+      if(data.status === 'completed'){
+        state.result = data.result;
+        renderDashboard(data.result);
+        spinner.hidden = true; progress.hidden = true; stepsEl.hidden = true; stageText.textContent = 'Analysis complete';
+        dashboard.hidden = false;
+      }else if(data.status === 'failed'){
+        spinner.hidden = true; progress.hidden = true; stageText.textContent = 'Analysis failed';
+        alert('Analysis failed: ' + (data.error || 'unknown'));
+      }else{
+        setTimeout(()=> pollStatus(job_id), 1500);
+      }
+    }catch(err){
+      spinner.hidden = true; progress.hidden = true; stageText.textContent = 'Error polling status';
+      console.error(err);
+    }
+  }
+
+  function updateProgressUI(job){
+    stageText.textContent = `Stage: ${job.stage || 'processing'}`;
+    if(typeof job.progress === 'number') progress.value = job.progress;
+    // update steps visual
+    document.querySelectorAll('.step').forEach(s=>{
+      const stepName = s.dataset.step;
+      const statusEl = s.querySelector('.step-status');
+      const iconEl = s.querySelector('.step-icon');
+      if(job.stage === stepName || (job.stage === 'post_simplification' && stepName==='simplification')){
+        statusEl.textContent = 'In Progress...'; s.classList.add('in-progress'); s.classList.remove('completed'); iconEl.textContent = '●';
+      } else if(isStageCompleted(stepName, job)){
+        statusEl.textContent = 'Completed'; s.classList.add('completed'); s.classList.remove('in-progress'); iconEl.textContent = '✔';
+      } else {
+        statusEl.textContent = 'Pending'; s.classList.remove('completed'); s.classList.remove('in-progress'); iconEl.textContent = '○';
+      }
+    });
+  }
+
+  function isStageCompleted(stepName, job){
+    const order = ['upload','extraction','graph_generation','constraints','simplification','verification','completed'];
+    const idxJob = order.indexOf(job.stage);
+    const idxStep = order.indexOf(stepName);
+    return idxJob > idxStep || job.status === 'completed';
+  }
+
   // render dashboard
   function renderDashboard(data){
-    // metrics
     metrics.innerHTML = '';
     const filename = state.file ? state.file.name : 'Uploaded document';
-    const verified = data.verification && typeof data.verification.verified !== 'undefined' ? String(data.verification.verified) : 'Not available';
+    const verified = data.verification && typeof data.verification.verified !== 'undefined' ? (data.verification.verified ? 'Verified' : 'Issues') : 'Not available';
     const mismatches = data.verification && data.verification.mismatches ? data.verification.mismatches.length : 'Not available';
 
     addMetric('Document', filename, '📄');
-    addMetric('Status', data.verification && data.verification.verified ? 'Verified' : (data.verification ? 'Issues' : 'Not available'), '🔍');
-    addMetric('Verified', verified, '✅');
+    addMetric('Verification', verified, '🔍');
     addMetric('Mismatches', mismatches, '⚠️');
+    addMetric('Clauses', (data.generated_graph && data.generated_graph.nodes) ? data.generated_graph.nodes.filter(n=>n.type==='clause').length : 'Not available', '📑');
 
-    // texts
     originalText.textContent = data.original_text || '(No original text returned)';
     simplifiedText.textContent = data.simplified_text || '(No simplified text returned)';
 
-    // graphs
     renderGraphData('orig', data.original_graph);
     renderGraphData('gen', data.generated_graph);
 
-    // mismatches
     renderMismatches(data.verification);
-
-    // terms
     renderTermsFromGraphs(data.original_graph, data.generated_graph);
-
-    // verification content
     renderVerification(data.verification);
   }
 
@@ -142,7 +174,7 @@
     metrics.appendChild(el);
   }
 
-  // graph utilities
+  // graph utilities (reused)
   function renderGraphData(kind, graphJson){
     const container = kind === 'orig' ? origGraphEl : genGraphEl;
     container.innerHTML = '';
@@ -152,7 +184,6 @@
     const edges = new vis.DataSet(graphJson.links.map(l=>({from:l.source,to:l.target,label:l.relation||'', data:l}))); 
     const network = new vis.Network(container, {nodes, edges}, {physics:{stabilization:true}, groups:{party:{color:{background:'#2ca58d'}},clause:{color:{background:'#B4C7E7'}}}});
 
-    // node click
     network.on('click', function(params){ if(params.nodes && params.nodes.length){ const id = params.nodes[0]; const nd = nodes.get(id); showNodeDetails(nd.data||nd); } });
 
     state.networks[kind] = { network, nodes, edges };
@@ -176,14 +207,10 @@
     });
   }
 
-  // terms extraction from graphs
+  // terms
   function renderTermsFromGraphs(origGraph, genGraph){
     termsOriginal.innerHTML=''; termsSimplified.innerHTML='';
     const origTerms = extractTermsFromGraph(origGraph); const genTerms = extractTermsFromGraph(genGraph);
-    const preserved = origTerms.filter(t=> genTerms.includes(t));
-    const missing = origTerms.filter(t=> !genTerms.includes(t));
-    const added = genTerms.filter(t=> !origTerms.includes(t));
-
     origTerms.forEach(t => { const el = document.createElement('div'); el.className='chip'; el.textContent = t; termsOriginal.appendChild(el); });
     genTerms.forEach(t => { const el = document.createElement('div'); el.className='chip'; el.textContent = t; termsSimplified.appendChild(el); });
   }
@@ -201,17 +228,20 @@
     const pre = document.createElement('pre'); pre.textContent = JSON.stringify(verification, null, 2); verificationContent.appendChild(pre);
   }
 
-  // download handlers
+  // downloads
   qs('download-original').addEventListener('click', ()=>{ if(!state.result) return alert('No result'); downloadText(state.result.original_text || '', (state.file && state.file.name) ? state.file.name.replace(/\.(pdf|txt|md)$/i,'') + '-original.txt': 'original.txt'); });
   qs('download-simplified').addEventListener('click', ()=>{ if(!state.result) return alert('No result'); downloadText(state.result.simplified_text || '', 'simplified.txt'); });
-  qs('open-comparison').addEventListener('click', ()=>{ document.querySelector('.nav-btn[data-section="comparison"]').click(); });
+
+  qs('export-pdf').addEventListener('click', async ()=>{
+    if(!state.job_id) return alert('No analysis job available');
+    const url = '/export/' + state.job_id;
+    window.open(url, '_blank');
+  });
 
   function downloadText(text, filename){ const blob = new Blob([text||''],{type:'text/plain'}); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href=url; a.download=filename; a.click(); URL.revokeObjectURL(url); }
-
   function escapeHtml(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
-  // init
-  // attach reset view
+  // init: attach reset view
   document.querySelectorAll('.graph-controls button').forEach(btn => btn.addEventListener('click', ()=>{
     const g = btn.dataset.graph; const st = state.networks[g]; if(st && st.network) st.network.setOptions({physics:{stabilization:true}});
   }));
