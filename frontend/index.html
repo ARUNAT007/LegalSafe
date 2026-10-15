@@ -31,10 +31,15 @@
     </aside>
 
     <main class="main">
-      <header class="topbar">
-        <h1>Understand Legal Documents with Confidence</h1>
-        <p class="subtitle">Upload a contract or legal document, simplify its language, and verify preservation of key legal facts.</p>
-      </header>
+      <div class="topbar">
+        <div>
+          <h1>Understand Legal Documents with Confidence</h1>
+          <div class="subtitle">Upload a contract or legal document, simplify its language, and verify preservation of key legal facts.</div>
+        </div>
+        <div>
+          <button id="global-analyze" class="btn primary">Analyze Document</button>
+        </div>
+      </div>
 
       <section id="upload-workspace" class="card upload-card">
         <div class="upload-left">
@@ -47,6 +52,16 @@
               <div class="hint">Supported: PDF (text or scanned), .txt, .md</div>
             </div>
           </div>
+
+          <div style="margin-top:12px;display:flex;gap:8px;align-items:center">
+            <input id="disclosing-party" placeholder="Disclosing Party (optional)" style="flex:1;padding:8px;border-radius:8px;border:1px solid rgba(9,30,66,0.06)" />
+            <input id="receiving-party" placeholder="Receiving Party (optional)" style="flex:1;padding:8px;border-radius:8px;border:1px solid rgba(9,30,66,0.06)" />
+          </div>
+
+          <div style="margin-top:8px">
+            <label><input id="exclude-tests" type="checkbox" checked /> Exclude test/instruction sections from output</label>
+          </div>
+
           <div class="file-info" id="file-info" aria-live="polite"></div>
           <div class="controls">
             <button id="analyzeBtn" class="btn primary" disabled>Analyze Document</button>
@@ -54,15 +69,15 @@
         </div>
         <div class="upload-right">
           <div id="processing" class="processing">
-            <div class="processing-header">
+            <div class="processing-header" style="display:flex;align-items:center;gap:12px">
               <div class="spinner" id="spinner" hidden></div>
               <div class="stage-text" id="stage-text">No analysis running</div>
             </div>
-            <progress id="progress" value="0" max="100" hidden></progress>
+            <progress id="progress" value="0" max="100" hidden style="width:100%"></progress>
 
             <div class="steps" id="steps" hidden>
               <div class="step" data-step="upload">
-                <div class="step-left"><div class="step-icon">✔</div></div>
+                <div class="step-left"><div class="step-icon">○</div></div>
                 <div class="step-body">
                   <div class="step-title">Document Upload & Validation</div>
                   <div class="step-desc">Securely saving file & validating MIME type</div>
@@ -70,7 +85,7 @@
                 <div class="step-right"><div class="step-status">Pending</div></div>
               </div>
               <div class="step" data-step="extraction">
-                <div class="step-left"><div class="step-icon">✔</div></div>
+                <div class="step-left"><div class="step-icon">○</div></div>
                 <div class="step-body">
                   <div class="step-title">Text & Clause Extraction</div>
                   <div class="step-desc">Extracting clauses, negations, and legal terms</div>
@@ -78,7 +93,7 @@
                 <div class="step-right"><div class="step-status">Pending</div></div>
               </div>
               <div class="step" data-step="graph_generation">
-                <div class="step-left"><div class="step-icon">✔</div></div>
+                <div class="step-left"><div class="step-icon">○</div></div>
                 <div class="step-body">
                   <div class="step-title">Legal Fact Graph Generation</div>
                   <div class="step-desc">Building NetworkX graph nodes & relations</div>
@@ -86,7 +101,7 @@
                 <div class="step-right"><div class="step-status">Pending</div></div>
               </div>
               <div class="step" data-step="constraints">
-                <div class="step-left"><div class="step-icon">✔</div></div>
+                <div class="step-left"><div class="step-icon">○</div></div>
                 <div class="step-body">
                   <div class="step-title">Deriving Fact Preservation Constraints</div>
                   <div class="step-desc">Formulating constraint rules for amounts and dates</div>
@@ -94,7 +109,7 @@
                 <div class="step-right"><div class="step-status">Pending</div></div>
               </div>
               <div class="step" data-step="simplification">
-                <div class="step-left"><div class="step-icon">✔</div></div>
+                <div class="step-left"><div class="step-icon">○</div></div>
                 <div class="step-body">
                   <div class="step-title">FLAN–T5 Constraint Simplification</div>
                   <div class="step-desc">Generating plain-language legal text</div>
@@ -102,7 +117,7 @@
                 <div class="step-right"><div class="step-status">Pending</div></div>
               </div>
               <div class="step" data-step="verification">
-                <div class="step-left"><div class="step-icon">●</div></div>
+                <div class="step-left"><div class="step-icon">○</div></div>
                 <div class="step-body">
                   <div class="step-title">Fidelity & Meaning Verification</div>
                   <div class="step-desc">Verifying graph alignment & zero fact loss</div>
@@ -112,7 +127,7 @@
             </div>
 
           </div>
-          <div class="recent card small" id="recent-card">
+          <div class="recent card small" id="recent-card" style="margin-top:14px;padding:12px">
             <strong>Recent</strong>
             <div class="muted">No analyses yet</div>
           </div>
@@ -120,8 +135,7 @@
       </section>
 
       <section id="dashboard" class="dashboard" hidden>
-        <div class="metrics row" id="metrics">
-        </div>
+        <div class="metrics row" id="metrics"></div>
 
         <div class="tabs" id="section-content">
           <div class="tab-pane" id="overview">

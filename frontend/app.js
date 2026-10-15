@@ -1,4 +1,4 @@
-// frontend/app.js — redesigned dashboard with async job polling
+// frontend/app.js — redesigned dashboard with async job polling and improved redraw
 (() => {
   const state = { file: null, job_id: null, result: null, networks: { orig: null, gen: null } };
 
@@ -36,6 +36,24 @@
     document.querySelectorAll('.tab-pane').forEach(p => p.hidden = true);
     const el = qs(name);
     if(el) el.hidden = false;
+
+    // If user opened the graphs tab, ensure vis networks redraw and fit
+    if(name === 'graphs') {
+      setTimeout(() => {
+        try {
+          if (state.networks && state.networks.orig && state.networks.orig.network) {
+            state.networks.orig.network.redraw();
+            state.networks.orig.network.fit();
+          }
+          if (state.networks && state.networks.gen && state.networks.gen.network) {
+            state.networks.gen.network.redraw();
+            state.networks.gen.network.fit();
+          }
+        } catch (e) {
+          console.warn('Graph redraw failed', e);
+        }
+      }, 120);
+    }
   }
   showSection('overview');
 
@@ -93,6 +111,11 @@
       xhr.onerror = ()=> reject(new Error('Network error'));
       xhr.upload.onprogress = (e)=>{ if(e.lengthComputable && onProgress) onProgress(e.loaded / e.total); };
       const fd = new FormData(); fd.append('file', file);
+      const dis = document.getElementById('disclosing-party').value.trim();
+      const rec = document.getElementById('receiving-party').value.trim();
+      fd.append('disclosing_party', dis);
+      fd.append('receiving_party', rec);
+      fd.append('exclude_test_instructions', document.getElementById('exclude-tests').checked ? 'true' : 'false');
       xhr.send(fd);
     });
   }
@@ -123,7 +146,6 @@
   function updateProgressUI(job){
     stageText.textContent = `Stage: ${job.stage || 'processing'}`;
     if(typeof job.progress === 'number') progress.value = job.progress;
-    // update steps visual
     document.querySelectorAll('.step').forEach(s=>{
       const stepName = s.dataset.step;
       const statusEl = s.querySelector('.step-status');
@@ -149,7 +171,7 @@
   function renderDashboard(data){
     metrics.innerHTML = '';
     const filename = state.file ? state.file.name : 'Uploaded document';
-    const verified = data.verification && typeof data.verification.verified !== 'undefined' ? (data.verification.verified ? 'Verified' : 'Issues') : 'Not available';
+    const verified = data.verification && typeof data.verification.verified !== 'undefined' ? (data.verification.verified ? 'Verified' : 'Warnings') : 'Not available';
     const mismatches = data.verification && data.verification.mismatches ? data.verification.mismatches.length : 'Not available';
 
     addMetric('Document', filename, '📄');
@@ -174,7 +196,7 @@
     metrics.appendChild(el);
   }
 
-  // graph utilities (reused)
+  // graph utilities
   function renderGraphData(kind, graphJson){
     const container = kind === 'orig' ? origGraphEl : genGraphEl;
     container.innerHTML = '';
