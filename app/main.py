@@ -44,7 +44,6 @@ async def analyze(file: UploadFile = File(...), background_tasks: BackgroundTask
     with open(file_path, "wb") as f:
         f.write(contents)
 
-    # initialize job record
     JOBS[job_id] = {
         "job_id": job_id,
         "status": "queued",
@@ -54,10 +53,32 @@ async def analyze(file: UploadFile = File(...), background_tasks: BackgroundTask
         "error": None
     }
 
-    def progress_callback(update: dict):
-        # update JOBS entry with stage/progress
-        JOBS[job_id]["stage"] = update.get("stage", JOBS[job_id].get("stage"))
-        JOBS[job_id]["progress"] = update.get("progress", JOBS[job_id].get("progress", 0))
+    def progress_callback(*args, **kwargs):
+        """Flexible progress callback that accepts dict, positional, or keyword args."""
+        try:
+            stage = kwargs.get("stage") or kwargs.get("stage_name")
+            progress = kwargs.get("progress") or kwargs.get("percent")
+
+            if args:
+                if len(args) == 1 and isinstance(args[0], dict):
+                    stage = stage or args[0].get("stage") or args[0].get("stage_name")
+                    progress = progress or args[0].get("progress") or args[0].get("percent")
+                elif len(args) >= 2:
+                    stage = stage or args[0]
+                    progress = progress or args[1]
+                elif len(args) == 1:
+                    stage = stage or args[0]
+
+            if stage is not None:
+                JOBS[job_id]["stage"] = str(stage)
+            if progress is not None:
+                try:
+                    JOBS[job_id]["progress"] = int(progress)
+                except Exception:
+                    JOBS[job_id]["progress"] = progress
+        except Exception:
+            # Never crash the analysis because callback formatting is unexpected.
+            pass
 
     def _run():
         try:
@@ -65,10 +86,15 @@ async def analyze(file: UploadFile = File(...), background_tasks: BackgroundTask
             JOBS[job_id]["stage"] = "extraction"
             JOBS[job_id]["progress"] = 5
 
-            # read file bytes and run pipeline with progress callback
             with open(file_path, "rb") as fh:
                 data = fh.read()
-            result = run_full_pipeline(data, filename=file.filename, retry_limit=2, progress_callback=progress_callback)
+
+            result = run_full_pipeline(
+                data,
+                filename=file.filename,
+                retry_limit=2,
+                progress_callback=progress_callback,
+            )
 
             JOBS[job_id]["result"] = result
             JOBS[job_id]["status"] = "completed"
@@ -78,11 +104,9 @@ async def analyze(file: UploadFile = File(...), background_tasks: BackgroundTask
             JOBS[job_id]["status"] = "failed"
             JOBS[job_id]["error"] = str(e)
 
-    # schedule background task
     if background_tasks is not None:
         background_tasks.add_task(_run)
     else:
-        # fallback: run synchronously (not recommended)
         _run()
 
     return JSONResponse(content={"job_id": job_id})
@@ -123,13 +147,11 @@ async def export_pdf(job_id: str):
     write_line(f"Job ID: {job_id}", 10)
     write_line(" ")
 
-    # Summary
     verification = result.get("verification") if result else None
     write_line("Verification:", 12, True)
     write_line(str(verification))
     write_line(" ")
 
-    # Original text (truncated)
     orig = result.get("original_text", "(none)")
     write_line("Original Text (truncated):", 12, True)
     for line in orig.splitlines()[:50]:
@@ -139,7 +161,6 @@ async def export_pdf(job_id: str):
     p.showPage()
     y = height - margin
 
-    # Simplified text (truncated)
     simp = result.get("simplified_text", "(none)")
     write_line("Simplified Text (truncated):", 12, True)
     for line in simp.splitlines()[:60]:
